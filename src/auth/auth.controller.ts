@@ -12,11 +12,12 @@ import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto';
 import { Tokens } from './interfaces';
 import { ConfigService } from '@nestjs/config';
-import { Cookie, UserAgent } from '@common/decorators';
+import { Cookie, Public, UserAgent } from '@common/decorators';
 import { Response } from 'express';
 
 const REFRESH_TOKEN = 'refresh_token';
 
+@Public()
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService, private readonly configService: ConfigService) {}
