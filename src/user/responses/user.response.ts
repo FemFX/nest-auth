@@ -1,4 +1,4 @@
-import { Role, User } from '@prisma/client';
+import { Provider, Role, User } from '@prisma/client';
 import { Exclude } from 'class-transformer';
 
 export class UserResponse implements User {
@@ -10,7 +10,8 @@ export class UserResponse implements User {
     createdAt: Date;
     updatedAt: Date;
     roles: Role[];
-
+    @Exclude()
+    provider: Provider;
     constructor(user: User) {
         Object.assign(this, user);
     }

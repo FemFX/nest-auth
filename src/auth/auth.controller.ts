@@ -9,21 +9,32 @@ import {
     HttpStatus,
     UseInterceptors,
     ClassSerializerInterceptor,
+    UseGuards,
+    Req,
+    Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto';
 import { Tokens } from './interfaces';
 import { ConfigService } from '@nestjs/config';
 import { Cookie, Public, UserAgent } from '@common/decorators';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { UserResponse } from '@user/responses';
+import { GoogleGuard } from './guards/google.guard';
+import { HttpService } from '@nestjs/axios';
+import { map, mergeMap, tap } from 'rxjs';
+import { handleTimeoutAndErrors } from '@common/helpers';
 
 const REFRESH_TOKEN = 'refresh_token';
 
 @Public()
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService, private readonly configService: ConfigService) {}
+    constructor(
+        private readonly authService: AuthService,
+        private readonly configService: ConfigService,
+        private readonly httpService: HttpService,
+    ) {}
     @UseInterceptors(ClassSerializerInterceptor)
     @Post('register')
     async register(@Body() dto: RegisterDto) {
@@ -80,5 +91,32 @@ export class AuthController {
         return res.status(HttpStatus.CREATED).json({
             accessToken: tokens.accessToken,
         });
+    }
+    @UseGuards(GoogleGuard)
+    @Get('google')
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    googleAuth() {}
+    @UseGuards(GoogleGuard)
+    @Get('google/callback')
+    googleAuthCallback(@Req() req: Request, @Res() res: Response) {
+        console.log(req.user);
+
+        const token = req.user['accessToken'];
+
+        return res.redirect(`http://localhost:3000/api/auth/success?token=${token}`);
+    }
+    //client
+    @Get('success')
+    success(@Query('token') token: string, @UserAgent() agent: string, @Res() res: Response) {
+        //https://www.googleapis.com/oauth2/v3/userinfo GET
+        return this.httpService.get(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`).pipe(
+            // map(({ data }) => {
+            //     console.log(data);
+            //     return data;
+            // }),
+            mergeMap(({ data: { email } }) => this.authService.googleAuth(email, agent)),
+            map((data) => this.setRefreshTokenToCookie(data, res)),
+            handleTimeoutAndErrors(),
+        );
     }
 }
