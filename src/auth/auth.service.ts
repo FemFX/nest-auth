@@ -61,12 +61,16 @@ export class AuthService {
         return this.generateTokens(user, agent);
     }
 
-    async googleAuth(email: string, agent: string) {
+    async providerAuth(email: string, agent: string, provider: Provider) {
         const isUserExists = await this.userService.findOne(email);
         if (isUserExists) {
-            return this.generateTokens(isUserExists, agent);
+            const user = await this.userService.save({ email, provider }).catch((err) => {
+                this.logger.error(err);
+                return null;
+            });
+            return this.generateTokens(user, agent);
         }
-        const user = await this.userService.save({ email, provider: Provider.GOOGLE }).catch((err) => {
+        const user = await this.userService.save({ email, provider }).catch((err) => {
             this.logger.error(err);
             return null;
         });

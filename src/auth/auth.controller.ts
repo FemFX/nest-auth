@@ -24,6 +24,8 @@ import { GoogleGuard } from './guards/google.guard';
 import { HttpService } from '@nestjs/axios';
 import { map, mergeMap, tap } from 'rxjs';
 import { handleTimeoutAndErrors } from '@common/helpers';
+import { YandexGuard } from './guards/yandex.guard';
+import { Provider } from '@prisma/client';
 
 const REFRESH_TOKEN = 'refresh_token';
 
@@ -103,18 +105,47 @@ export class AuthController {
 
         const token = req.user['accessToken'];
 
-        return res.redirect(`http://localhost:3000/api/auth/success?token=${token}`);
+        return res.redirect(`http://localhost:3000/api/auth/success-google?token=${token}`);
     }
     //client
-    @Get('success')
-    success(@Query('token') token: string, @UserAgent() agent: string, @Res() res: Response) {
+    @Get('success-google')
+    successGoogle(@Query('token') token: string, @UserAgent() agent: string, @Res() res: Response) {
         //https://www.googleapis.com/oauth2/v3/userinfo GET
         return this.httpService.get(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`).pipe(
             // map(({ data }) => {
             //     console.log(data);
             //     return data;
             // }),
-            mergeMap(({ data: { email } }) => this.authService.googleAuth(email, agent)),
+            mergeMap(({ data: { email } }) => this.authService.providerAuth(email, agent, Provider.GOOGLE)),
+            map((data) => this.setRefreshTokenToCookie(data, res)),
+            handleTimeoutAndErrors(),
+        );
+    }
+
+    @UseGuards(YandexGuard)
+    @Get('yandex')
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    yandexAuth() {}
+    @UseGuards(YandexGuard)
+    @Get('yandex/callback')
+    yandexAuthCallback(@Req() req: Request, @Res() res: Response) {
+        console.log(req.user);
+
+        const token = req.user['accessToken'];
+
+        return res.redirect(`http://localhost:3000/api/auth/success-yandex?token=${token}`);
+    }
+    @Get('success-yandex')
+    successYandex(@Query('token') token: string, @UserAgent() agent: string, @Res() res: Response) {
+        //https://www.googleapis.com/oauth2/v3/userinfo GET
+        return this.httpService.get(`https://login.yandex.ru/info?format=json&oauth_token=${token}`).pipe(
+            // map(({ data }) => {
+            //     console.log(data);
+            //     return data;
+            // }),
+            mergeMap(({ data: { default_email } }) =>
+                this.authService.providerAuth(default_email, agent, Provider.YANDEX),
+            ),
             map((data) => this.setRefreshTokenToCookie(data, res)),
             handleTimeoutAndErrors(),
         );
