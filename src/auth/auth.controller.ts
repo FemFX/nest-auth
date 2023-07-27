@@ -7,6 +7,8 @@ import {
     UnauthorizedException,
     Res,
     HttpStatus,
+    UseInterceptors,
+    ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto';
@@ -14,6 +16,7 @@ import { Tokens } from './interfaces';
 import { ConfigService } from '@nestjs/config';
 import { Cookie, Public, UserAgent } from '@common/decorators';
 import { Response } from 'express';
+import { UserResponse } from '@user/responses';
 
 const REFRESH_TOKEN = 'refresh_token';
 
@@ -21,7 +24,7 @@ const REFRESH_TOKEN = 'refresh_token';
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService, private readonly configService: ConfigService) {}
-
+    @UseInterceptors(ClassSerializerInterceptor)
     @Post('register')
     async register(@Body() dto: RegisterDto) {
         const user = await this.authService.register(dto);
@@ -30,7 +33,7 @@ export class AuthController {
                 `Не получается зарегистрировать пользователя с данными ${JSON.stringify(dto)}`,
             );
         }
-        return user;
+        return new UserResponse(user);
     }
 
     @Post('login')
