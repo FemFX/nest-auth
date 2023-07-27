@@ -12,6 +12,8 @@ export class UserResponse implements User {
     roles: Role[];
     @Exclude()
     provider: Provider;
+    @Exclude()
+    isBlocked: boolean;
     constructor(user: User) {
         Object.assign(this, user);
     }
